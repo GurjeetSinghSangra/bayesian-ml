@@ -5,5 +5,5 @@ This repository presents the homeworks and assignments did in the course of Baye
 ## Summary
 	- Exercise 02: MCMC and LDA
 	- Exercise 03: Distributional approximation and Mixture Models
-	- Exercise 04: Guassia process
+	- Exercise 04: Gaussian process
 	- Exercise 05: Gradient variational approximation and Variational AE
