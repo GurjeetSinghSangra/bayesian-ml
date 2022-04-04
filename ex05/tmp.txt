@@ -1,0 +1,72 @@
+mu_u = torch.nn.Parameter(torch.tensor(5.0))
+sigma_u = torch.nn.Parameter(torch.tensor(0.5))
+mu_v = torch.nn.Parameter(torch.tensor(1.))
+sigma_v = torch.nn.Parameter(torch.tensor(0.2))
+
+n_epochs = 1000
+u_grad_elbo_2 = torch.zeros((n_epochs, 2))
+v_grad_elbo_2 = torch.zeros((n_epochs, 2))
+M = 100
+for epoch in range(n_epochs):
+    z_dist = torch.distributions.Normal(0, 1)
+    z = z_dist.sample((M, 1))
+
+    q_u = torch.distributions.Normal(mu_u, sigma_u)  
+    q_u_samples = q_u.sample((M, 1))
+    
+    q_v = torch.distributions.Normal(mu_v, sigma_v)
+    q_v_samples = q_v.sample((M, 1))
+
+    grad_mu_u = 0
+    grad_sigma_u = 0
+
+    grad_mu_v = 0
+    grad_sigma_v = 0
+    for i in range(0, M):
+        ## Gradient u
+        #grad_log_p_u = torch.sum(x/q_u_samples[i] - q_v_samples[i]) + (prior_u_alpha - 1)/ q_u_samples[i] - prior_u_beta
+        likelihood = torch.distributions.Poisson(q_u_samples[i]*q_v_samples[i])
+
+        f_u_z = mu_u + sigma_u * z[i]
+        f_v_z = mu_v + sigma_v * z[i]
+
+        #grad_log_q_f_u = (mu_u - f_u_z)/ sigma_u**2
+
+        log_joint_p = torch.sum(likelihood.log_prob(x)) + p_u.log_prob(f_u_z) + p_v.log_prob(f_v_z)
+        loss = log_joint_p - q_v.log_prob(f_v_z)
+        grad_log_joint = torch.autograd.grad(loss, inputs=(mu_u, sigma_u, mu_v, sigma_v), allow_unused=True)
+        
+        #print(grad)
+
+        #### mu u
+        #grad_log_q_u = torch.autograd.grad(q_u.log_prob(f_u_z), inputs=(mu_u, sigma_u), allow_unused=True, retain_graph=False)
+        #grad_mu_u += grad_log_p_u * 1. - grad_log_q_f_u * 1.
+        grad_mu_u += grad_log_joint[0].clone()
+
+        #### sigma u
+        #grad_f_u_sigma = z[i]
+        #grad_sigma_u += grad_log_p_u * grad_f_u_sigma - grad_log_q_f_u * grad_f_u_sigma
+        grad_sigma_u += grad_log_joint[1].clone()
+
+        ## Gradient v
+        #grad_log_p_v = torch.sum(x/q_v_samples[i] - q_u_samples[i]) + (prior_v_alpha - 1)/ q_v_samples[i] - prior_v_beta
+
+        #f_v_z = mu_v + sigma_v * z[i]
+        #print(torch.autograd.grad(f_v_z, inputs=(mu_v, sigma_v), allow_unused=True))
+        #grad_log_q_f_v = (mu_v - f_v_z)/ sigma_v**2
+
+        #grad_log_q_v = torch.autograd.grad(q_v.log_prob(f_v_z), inputs=(mu_v, sigma_v), allow_unused=True, retain_graph=False)
+        #### mu 
+        #grad_mu_v += grad_log_p_v * 1. - grad_log_q_f_v * 1.
+        grad_mu_v += grad_log_joint[2].clone()
+
+        #### sigma
+        grad_f_v_sigma = z[i]
+        #grad_sigma_v += grad_log_p_v * grad_f_v_sigma - grad_log_q_f_v * grad_f_v_sigma
+        grad_sigma_v += grad_log_joint[3].clone()
+
+        
+
+    u_grad_elbo_2[epoch] = torch.tensor([grad_mu_u, grad_sigma_u]) / M
+    v_grad_elbo_2[epoch] = torch.tensor([grad_mu_v, grad_sigma_v]) / M
+
